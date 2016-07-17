@@ -1,0 +1,172 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src * data:; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'">
+    <link rel="stylesheet" href="components/loader.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="components/loader.js"></script>
+    <script src="js/ncmb-2.1.0.min.js"></script>
+    <script>
+    $(function(){
+        //mBaasSの初期化
+        var application_key = "09773866405bbb14f9e01d25c24b0f47a594d127c4fa9ac2a9b5608c50e40b62";
+        var client_key = "8e2f5ef15e7f37636358d9c8ad18e361c1d88b8a753e2657d7a932c2a865b7a7";
+        var ncmb = new NCMB(application_key,client_key);
+        //canvas vars
+        var canvas_width = screen.width*0.75;
+        if(canvas_width>512){
+            canvas_width = 512;
+        };
+        var canvas_height  = canvas_width;
+        var canvas = document.getElementById("mycanvas");
+        canvas.width = canvas_width;
+        canvas.height = canvas_height;
+        var ctx = canvas.getContext("2d");
+        //変数群
+        var ONETAPGAME = ncmb.DataStore("ONETAPGAME");
+        var playerName;
+        var isPlaying = false;
+        var centerX = canvas.width/2;
+        var centerY = canvas.height/2;
+        var r;
+        var timerId;
+        var target;
+        var score;
+        
+        
+        $("#submit").on("click",function(){
+            $("#back").css("display","block");
+            ctx.fillStyle ="#000000";
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            playerName = $('#name').val();
+            game(playerName);
+            showRanking();
+        });
+        
+        $("#mycanvas").on("click",function(){
+            if(isPlaying === true){
+                clearTimeout(timerId);
+                score = 100 - Math.abs(target-r);
+                if(score < 0)score = 0;
+                ctx.fillStyle ="#FFFFFF";
+                ctx.font = "normal 100 16pt Verdana";
+                ctx.fillText("radius:"+r,centerX,centerY+40);
+                ctx.fillText("Score:"+score,centerX,centerY+65);
+                var onetapgame = new ONETAPGAME();
+                onetapgame.set("username",playerName);
+                onetapgame.set("score",score);
+                onetapgame.save()
+                .then(function(){
+                    showRanking();
+                });
+                
+            }else{
+                target = Math.floor(Math.random()*121)+80;
+                r=0;
+                drawCircle();
+            }
+            isPlaying = !isPlaying;
+            if(playerName == "debug"){
+            $("#debug").text(["isPlaying:",isPlaying,"\n","canvas_width",canvas_width,"canvas_height",canvas_height].join(" "));
+            }
+        });
+        
+        function drawCircle(){
+            ctx.fillStyle ="#BBDEFB";
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#1976D2";
+            ctx.beginPath();
+            ctx.arc(centerX,centerY,r,0,Math.PI * 2,false);
+            ctx.fill();
+            ctx.textAlign = "center";
+            ctx.fillStyle = "rgb(255,255,255)";
+            ctx.font = "normal 200 32pt Verdana";
+            ctx.fillText("target:"+target,centerX,centerY);
+
+            r++;
+            timerId = setTimeout(function(){
+                drawCircle();
+            },1);
+        }
+        
+        function showRanking(){
+            ONETAPGAME.limit(5)
+            .order("score",true)
+            .fetchAll()
+            .then(function(ary){
+                $("ul").empty();
+                $.each(ary,function(i,rank){
+                   $("<li>").text([
+                       i + 1,
+                       "位",
+                       rank.get("username"),
+                       "さん:",
+                       rank.get("score"),
+                       "点"
+                       ].join(" ")
+                       ).appendTo("ul"); 
+                });
+            });
+        }
+        
+        function game(playerName){
+            $('#surface').remove();
+            $('<p>').text("welcome "+playerName).appendTo("body");
+            ctx.fillStyle = "#FFFFFF";
+            ctx.font = "normal 100 12pt Verdana";
+            ctx.textAlign = "center";
+            ctx.fillText("Hello",centerX,centerY);
+        }
+        });    
+    </script>
+    <style>
+        body{
+            background-color:  #BBDEFB;
+            padding: 20px;
+            font-family: Verdana,sans-serif;
+            text-align: center;
+            }        
+        form{
+            height: 100%;
+        }
+        #name{
+            border-radius:5px;
+            width: 50%;
+            min-width: 11em;
+            font-size: 16pt;
+        }
+        #submit{
+            border-radius:5px;
+            margin-top: 1ex;
+            font-size: large;
+        }
+        ul{
+            list-style: none;
+            padding-left: 0;
+        }
+        #debug{
+            background-color: rgba(0,0,0,0.3);
+            color: YellowGreen;
+        }
+        #back{
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="surface">
+        <form>
+            <input type="text" id="name" placeholder="名前を入力してください"/>
+            <input type="button" id="submit" value="OK"/>
+        </form>
+    </div>
+    <div id="back">
+        <canvas id="mycanvas"></canvas>
+        <ul></ul>
+        <p id="debug"></p>
+    </div>
+</body>
+</html>
